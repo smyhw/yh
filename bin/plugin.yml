@@ -1,0 +1,13 @@
+name: yh
+main: smyhw.awa
+version: 1
+author: smyhw
+commands:
+  test:
+    description: test
+  selld:
+    description: awa
+  gn:
+    description: QAQ
+  yh:
+    description: awa
