@@ -5,16 +5,29 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.command.Command;
 import org.bukkit.plugin.java.JavaPlugin;
+
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.PrintStream;
+
 import org.bukkit.*;
 
 public class awa extends JavaPlugin implements Listener{
 	double set_jj=0;
 	double set_zj=0;
 	double set_dj=0;
+	boolean set_num=false;
 	boolean set_kt=false;
+	boolean set_player_list=false;
+	String set_player_list_url="C:\\";
 	@Override
     public void onEnable() {      
         getLogger().info("yh数据统计正在加载");
@@ -24,10 +37,15 @@ public class awa extends JavaPlugin implements Listener{
         set_jj=getConfig().getDouble("config.jj");
         set_dj=getConfig().getDouble("config.dj");
         set_kt=getConfig().getBoolean("config.kt");
+        set_num=getConfig().getBoolean("config.num");
+        set_player_list=getConfig().getBoolean("config.player_list");
+        set_player_list_url=getConfig().getString("config.player_list_url");
         getLogger().info("config.zj:"+set_zj);
         getLogger().info("config.jj:"+set_jj);
         getLogger().info("config.dj:"+set_dj);
         getLogger().info("config.kt:"+set_kt);
+        getLogger().info("config.player_list:"+set_player_list);
+        getLogger().info("config.player_list_url:"+set_player_list_url);
         getLogger().info("yh数据统计：完成配置加载...");
         getLogger().info("yh数据统计已经完全加载");
 //        saveDefaultConfig();
@@ -73,10 +91,16 @@ public class awa extends JavaPlugin implements Listener{
     	        set_jj=getConfig().getDouble("config.jj");
     	        set_dj=getConfig().getDouble("config.dj");
     	        set_kt=getConfig().getBoolean("config.kt");
+    	        set_num=getConfig().getBoolean("config.num");
+    	        set_player_list=getConfig().getBoolean("config.player_list");
+    	        set_player_list_url=getConfig().getString("config.player_list_url");
     	        getLogger().info("config.zj:"+set_zj);
     	        getLogger().info("config.jj:"+set_jj);
     	        getLogger().info("config.dj:"+set_dj);
     	        getLogger().info("config.kt:"+set_kt);
+    	        getLogger().info("config.kt:"+set_kt);
+    	        getLogger().info("config.player_list:"+set_player_list);
+    	        getLogger().info("config.player_list_url:"+set_player_list_url);
     	        getLogger().info("yh数据统计：完成配置加载...");
     	        break;
     	    //end_of_reload
@@ -226,5 +250,72 @@ public class awa extends JavaPlugin implements Listener{
     	String nc = e.getPlayer().getName();
 		getConfig().set(nc+".BreakBlock."+fkid,getConfig().getInt(nc+".BreakBlock."+fkid)+1);
 		saveConfig();
+    }
+    @EventHandler
+    public void ktg(PlayerJoinEvent e) throws Exception
+    {
+    	if(set_player_list==false) {return;}
+//    	System.out.println("gg");
+    	String temp1 = e.getPlayer().getName();
+    	getLogger().info("玩家"+temp1+"加入，写入文件！");
+    	player_online_list_file(temp1,1);
+    }
+    @EventHandler
+    public void ktg(PlayerQuitEvent e) throws Exception
+    {
+    	if(set_player_list==false) {return;}
+//    	System.out.println("aa");
+    	String temp1 = e.getPlayer().getName();
+    	getLogger().info("玩家"+temp1+"退出，删改文件！");
+    	player_online_list_file(temp1,0);
+    }
+    //将玩家信息读取或写入
+    //type==1:添加玩家
+    //type==0:删除玩家
+    void player_online_list_file(String name,int type) throws Exception
+    {
+    	if(type==1)
+    	{
+//        	BufferedWriter output = new BufferedWriter(new FileWriter("E:\\pl"));
+//
+//    		output.newLine();
+//    		output.write(name);
+//    		output.close();
+    	      FileWriter writer = new FileWriter("E:\\pl", true);
+    	      
+    	      writer.write(name);
+    	      writer.close();
+    	}
+    	else
+    	{
+    		File temp = new File("E:\\pl.temp");
+    		temp.createNewFile();
+        	BufferedReader input = new BufferedReader(new FileReader("E:\\pl"));
+        	BufferedWriter tempfile = new BufferedWriter(new FileWriter("E:\\pl.temp"));
+    		while(true)
+    		{
+    			String temp1=input.readLine();//temp1:每次从文件中读出的一行
+    			if(temp1==null) {break;}
+    			if(temp1.equals(name)){continue;}
+    			tempfile.write(temp1);
+    			tempfile.newLine();
+    		}
+    		input.close();
+    		tempfile.close();
+    		File temp2 = new File("E:\\pl");
+    		Boolean temp3;
+    		temp3=temp2.delete();
+    		while(temp3==false)
+    		{
+            	getLogger().info("删除源文件失败,正在重试...");
+    			temp3=temp2.delete();
+    		}
+    		temp3=temp.renameTo(new File("E:\\pl"));
+    		while(temp3==false)
+    		{
+    			getLogger().info("更名文件失败,正在重试...");
+    			temp3=temp.renameTo(new File("E:\\pl"));
+    		}
+    	}
     }
 }
