@@ -282,8 +282,7 @@ public class awa extends JavaPlugin implements Listener{
 //    		output.write(name);
 //    		output.close();
     	      FileWriter writer = new FileWriter("E:\\pl", true);
-    	      
-    	      writer.write(name);
+    	      writer.write(name+"\r\n");
     	      writer.close();
     	}
     	else
