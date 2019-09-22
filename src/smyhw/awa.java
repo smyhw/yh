@@ -5,6 +5,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.command.Command;
@@ -16,43 +17,39 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
+import java.io.IOException;
 import java.io.PrintStream;
 
 import org.bukkit.*;
 
 public class awa extends JavaPlugin implements Listener{
-	double set_jj=0;
-	double set_zj=0;
-	double set_dj=0;
-	boolean set_num=false;
-	boolean set_kt=false;
-	boolean set_player_list=false;
-	String set_player_list_url="C:\\";
+	double set_jj=0;//降价
+	double set_zj=0;//涨价
+	double set_dj=0;//低价
+	boolean set_kt=false;//是否统计方块挖掘数量
+	boolean set_player_list=false;//是否记录在线玩家列表
+	boolean set_chattb=false;//是否记录玩家聊天
+	String set_chattb_url="E:\\ctb";//玩家聊天记录位置
+	String set_player_list_url="E:\\pl";//玩家在线列表位置
+	
+	chattb_thread chattb_;//信息转发线程
 	@Override
     public void onEnable() {      
         getLogger().info("yh数据统计正在加载");
         Bukkit.getPluginManager().registerEvents(this,this);
-        getLogger().info("yh数据统计：正在加载配置...");
-        set_zj=getConfig().getDouble("config.zj");
-        set_jj=getConfig().getDouble("config.jj");
-        set_dj=getConfig().getDouble("config.dj");
-        set_kt=getConfig().getBoolean("config.kt");
-        set_num=getConfig().getBoolean("config.num");
-        set_player_list=getConfig().getBoolean("config.player_list");
-        set_player_list_url=getConfig().getString("config.player_list_url");
-        getLogger().info("config.zj:"+set_zj);
-        getLogger().info("config.jj:"+set_jj);
-        getLogger().info("config.dj:"+set_dj);
-        getLogger().info("config.kt:"+set_kt);
-        getLogger().info("config.player_list:"+set_player_list);
-        getLogger().info("config.player_list_url:"+set_player_list_url);
-        getLogger().info("yh数据统计：完成配置加载...");
+        load_set();
+        if(set_chattb==true) 
+        {
+        	chattb_ = new chattb_thread(set_chattb_url+"_QQ");
+        	chattb_.start();
+        }
         getLogger().info("yh数据统计已经完全加载");
 //        saveDefaultConfig();
     }
 
 	@Override
     public void onDisable() {
+		if(set_chattb==true) {chattb_.stop();}
         getLogger().info("yh数据统计已经卸载");
     }
     @SuppressWarnings("deprecation")
@@ -79,6 +76,10 @@ public class awa extends JavaPlugin implements Listener{
     			{
     				getConfig().set(args[2],Double.valueOf(args[3].toString()));
     			}
+    			if(args[1].equals("S"))
+    			{
+    				getConfig().set(args[2],args[3]);
+    			}
     			sender.sendMessage("配置文件条目"+args[2]+"已被更改为"+args[3]);
     			saveConfig();
     			return true;
@@ -86,22 +87,7 @@ public class awa extends JavaPlugin implements Listener{
     		//end_of_set
     		//begin_of_reload
     		case "reload" :
-    	        getLogger().info("yh数据统计：正在加载配置...");
-    	        set_zj=getConfig().getDouble("config.zj");
-    	        set_jj=getConfig().getDouble("config.jj");
-    	        set_dj=getConfig().getDouble("config.dj");
-    	        set_kt=getConfig().getBoolean("config.kt");
-    	        set_num=getConfig().getBoolean("config.num");
-    	        set_player_list=getConfig().getBoolean("config.player_list");
-    	        set_player_list_url=getConfig().getString("config.player_list_url");
-    	        getLogger().info("config.zj:"+set_zj);
-    	        getLogger().info("config.jj:"+set_jj);
-    	        getLogger().info("config.dj:"+set_dj);
-    	        getLogger().info("config.kt:"+set_kt);
-    	        getLogger().info("config.kt:"+set_kt);
-    	        getLogger().info("config.player_list:"+set_player_list);
-    	        getLogger().info("config.player_list_url:"+set_player_list_url);
-    	        getLogger().info("yh数据统计：完成配置加载...");
+    			load_set();
     	        break;
     	    //end_of_reload
     		//begin_of_矿
@@ -166,6 +152,11 @@ public class awa extends JavaPlugin implements Listener{
     			}
 //    			break;
     		//end_of_物价
+    		//bengin of 聊天同步
+//    		case "chattb" :
+//    			chattb_thread chattb_ = new chattb_thread("//home//smyhw//work_temp//test");
+//    			chattb_.run();
+    		//end of 聊天同步
     		}
     		//end_switch
     	}
@@ -179,7 +170,20 @@ public class awa extends JavaPlugin implements Listener{
             //卖出物品
     	if (cmd.getName().equalsIgnoreCase("selld"))
     	{
-
+    		if
+    		(
+    			!
+    			(
+    			(sender.hasPermission
+    					("smyhw.inworld.ourworld")
+    			) 
+    			|| 
+    			(sender.hasPermission
+    					("smyhw.inworld.rpg")
+    			)
+    			)
+    		)
+    		{sender.sendMessage("请在主世界或RPG世界售卖物品");return true;}
     		Material wp = ((Player)sender).getInventory().getItemInMainHand().getType();
     		int wpp = wp.getId();
     		String wppp = "sell.Statistics."+wpp+"";//获取物品统计键值
@@ -281,16 +285,16 @@ public class awa extends JavaPlugin implements Listener{
 //    		output.newLine();
 //    		output.write(name);
 //    		output.close();
-    	      FileWriter writer = new FileWriter("E:\\pl", true);
+    	      FileWriter writer = new FileWriter(set_player_list_url, true);
     	      writer.write(name+"\r\n");
     	      writer.close();
     	}
     	else
     	{
-    		File temp = new File("E:\\pl.temp");
+    		File temp = new File(set_player_list_url+".temp");
     		temp.createNewFile();
-        	BufferedReader input = new BufferedReader(new FileReader("E:\\pl"));
-        	BufferedWriter tempfile = new BufferedWriter(new FileWriter("E:\\pl.temp"));
+        	BufferedReader input = new BufferedReader(new FileReader(set_player_list_url));
+        	BufferedWriter tempfile = new BufferedWriter(new FileWriter(set_player_list_url+".temp"));
     		while(true)
     		{
     			String temp1=input.readLine();//temp1:每次从文件中读出的一行
@@ -301,7 +305,7 @@ public class awa extends JavaPlugin implements Listener{
     		}
     		input.close();
     		tempfile.close();
-    		File temp2 = new File("E:\\pl");
+    		File temp2 = new File(set_player_list_url);
     		Boolean temp3;
     		temp3=temp2.delete();
     		while(temp3==false)
@@ -309,12 +313,166 @@ public class awa extends JavaPlugin implements Listener{
             	getLogger().info("删除源文件失败,正在重试...");
     			temp3=temp2.delete();
     		}
-    		temp3=temp.renameTo(new File("E:\\pl"));
+    		temp3=temp.renameTo(new File(set_player_list_url));
     		while(temp3==false)
     		{
     			getLogger().info("更名文件失败,正在重试...");
-    			temp3=temp.renameTo(new File("E:\\pl"));
+    			temp3=temp.renameTo(new File(set_player_list_url));
     		}
     	}
     }
+    @EventHandler
+    public void chattb(AsyncPlayerChatEvent e) throws Exception
+    {
+    	File chattb_file = new File(set_chattb_url);
+    	if(chattb_file.exists()){}else{chattb_file.createNewFile();}
+		FileWriter writer = new FileWriter(chattb_file, true);
+		writer.write(e.getPlayer().getName()+":"+e.getMessage()+"\r\n");
+		writer.close();
+    }
+    //=========================写一堆lib在最后XD===========
+    public void load_set()
+    {
+        getLogger().info("yh数据统计：正在加载配置...");
+        set_zj=getConfig().getDouble("config.zj");
+        set_jj=getConfig().getDouble("config.jj");
+        set_dj=getConfig().getDouble("config.dj");
+        set_kt=getConfig().getBoolean("config.kt");
+        set_player_list=getConfig().getBoolean("config.player_list");
+        set_chattb=getConfig().getBoolean("config.chattb");
+        set_player_list_url=getConfig().getString("config.player_list_url");
+        set_chattb_url=getConfig().getString("config.chattb_url");
+        getLogger().info("config.zj:"+set_zj);
+        getLogger().info("config.jj:"+set_jj);
+        getLogger().info("config.dj:"+set_dj);
+        getLogger().info("config.kt:"+set_kt);
+        getLogger().info("config.player_list:"+set_player_list);
+        getLogger().info("config.player_list_url:"+set_player_list_url);
+        getLogger().info("config.chattb:"+set_chattb);
+        getLogger().info("config.chattb_url:"+set_chattb_url);
+        getLogger().info("yh数据统计：完成配置加载...");
+    }
+    //=========================真就lib呗...===============
+}
+//用于消息同步。。。
+class chattb_thread extends Thread
+{
+	String file_URL;
+	public chattb_thread(String file_URL_input)
+	{
+		file_URL=file_URL_input;
+	}
+	public void run()
+	{
+		try {
+			File file = new File(file_URL);
+			String text;
+			char cl[];
+			int xh=0,xh1=0;
+			String CQtext="_CQtext_error_";
+			String q="_q_error_",h="_h_error_";
+			int a_QQb=0,a_QQe=0;
+			String a_QQ="_a_QQ_errer_";
+			while(true)
+			{
+				if(file.exists())
+				{
+					BufferedReader input = new BufferedReader(new FileReader(file));
+					while(true)
+					{
+//						System.out.println("gg");
+						text=input.readLine();
+						if(text==null) {break;}
+						//处理文本（例如过滤CQ码）
+						xh=0;xh1=1;
+						CQtext="_CQtext_error_";q="_q_error_";h="_h_error_";
+						while(true)
+						{
+							if(xh==(text.length()-1)) {break;}
+							if
+							(
+									(text.charAt(xh)=='[') &&
+									(text.charAt(xh+1)=='C') &&
+									(text.charAt(xh+2)=='Q') &&
+									(text.charAt(xh+3)==':') 
+							)
+							{//探测到CQ码，检测类型
+								//at类型
+								if(text.charAt(xh+4)=='a')
+								{
+//									System.out.println("aa");
+									while(true)//遍历文本，找到‘=’
+									{
+										if((text.charAt(xh1))=='=') //找到QQ号开始符
+										{
+											a_QQb=(xh1+1);
+											break;
+										}
+										if(xh1==(text.length()-1)) {a_QQb=(text.length()-1);break;}//如果找不到，就定义到末尾
+										xh1++;
+									}
+									while(true)//遍历文本，找到‘]’
+									{
+										if((text.charAt(xh1))==']') //找到CQ结束符，记录QQ号结束
+										{
+											a_QQe=(xh1);
+											break;
+										}
+										if(xh1==(text.length()-1)) {a_QQe=(text.length()-1);break;}//如果找不到，就定义到末尾
+										xh1++;
+									}
+									a_QQ=text.substring(a_QQb, a_QQe);
+									//QQ号转昵称
+									BufferedReader db_input = new BufferedReader(new FileReader("E://QNL"));
+					        		String temp=db_input.readLine();
+					        		while(true)
+					        		{
+//					        			System.out.println(a_QQ+"?"+temp);
+					        			if(temp==null) {temp=(a_QQ+"");break;}
+					        			if(temp.equals(a_QQ+"")) 
+					        			{
+					        				temp=db_input.readLine();
+					        				break;
+					        			}
+					            		temp=db_input.readLine();
+					            		temp=db_input.readLine();
+					        		}
+					        		db_input.close();
+									CQtext=("@"+temp);
+								}
+								xh1=1;
+								//图片类型
+								if(text.charAt(xh+4)=='i') {CQtext="[图片]";}
+								xh1=1;
+								//表情类型
+								if(text.charAt(xh+4)=='f') {CQtext="[表情]";}
+								xh1=1;
+								q=text.substring(0,xh);//剥离出前文本
+								xh1=xh+4;
+								while(true)//遍历文本，找到‘]’
+								{
+									if((text.charAt(xh1))==']') //找到CQ结束符，剥离后文本
+									{
+										h=text.substring(xh1+1);
+										break;
+									}
+									if(xh1==(text.length()-1)) {break;}
+									xh1++;
+								}
+								//接合前后文本，并在中间加入替换CQ的文本
+								text=(q+CQtext+h);
+							}
+							xh++;
+						}
+						//结束文本处理
+						Bukkit.broadcastMessage("§a[QQ]:§b"+text);
+					}
+					input.close();
+					file.delete();
+				}
+				Thread.sleep(3000);
+//				System.out.println("aaa");
+			}
+		}catch (Exception e) {}
+	}
 }
