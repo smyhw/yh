@@ -5,6 +5,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
@@ -321,6 +322,7 @@ public class awa extends JavaPlugin implements Listener{
     		}
     	}
     }
+    //监听聊天信息并写入文件
     @EventHandler
     public void chattb(AsyncPlayerChatEvent e) throws Exception
     {
@@ -328,6 +330,16 @@ public class awa extends JavaPlugin implements Listener{
     	if(chattb_file.exists()){}else{chattb_file.createNewFile();}
 		FileWriter writer = new FileWriter(chattb_file, true);
 		writer.write(e.getPlayer().getName()+":"+e.getMessage()+"\r\n");
+		writer.close();
+    }
+    //监听玩家死亡并传送至QQ
+    @EventHandler
+    public void chattb(PlayerDeathEvent e) throws Exception
+    {
+    	File chattb_file = new File(set_chattb_url);
+    	if(chattb_file.exists()){}else{chattb_file.createNewFile();}
+		FileWriter writer = new FileWriter(chattb_file, true);
+		writer.write(e.getDeathMessage()+"\r\n");
 		writer.close();
     }
     //=========================写一堆lib在最后XD===========
@@ -364,6 +376,7 @@ class chattb_thread extends Thread
 	}
 	public void run()
 	{
+		while(true)
 		try {
 			File file = new File(file_URL);
 			String text;
@@ -473,6 +486,6 @@ class chattb_thread extends Thread
 				Thread.sleep(3000);
 //				System.out.println("aaa");
 			}
-		}catch (Exception e) {}
+		}catch (Exception e) {continue;}
 	}
 }
