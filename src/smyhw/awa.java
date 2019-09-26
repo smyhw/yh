@@ -339,7 +339,7 @@ public class awa extends JavaPlugin implements Listener{
     	File chattb_file = new File(set_chattb_url);
     	if(chattb_file.exists()){}else{chattb_file.createNewFile();}
 		FileWriter writer = new FileWriter(chattb_file, true);
-		writer.write(e.getDeathMessage()+"\r\n");
+		writer.write("[死亡信息]"+e.getEntity().getName()+"回到了重生点"+"\r\n");
 		writer.close();
     }
     //=========================写一堆lib在最后XD===========
@@ -380,12 +380,14 @@ class chattb_thread extends Thread
 		try {
 			File file = new File(file_URL);
 			String text;
+			/*处理CQ码时所用，已报废
 			char cl[];
 			int xh=0,xh1=0;
 			String CQtext="_CQtext_error_";
 			String q="_q_error_",h="_h_error_";
 			int a_QQb=0,a_QQe=0;
 			String a_QQ="_a_QQ_errer_";
+			*/
 			while(true)
 			{
 				if(file.exists())
@@ -396,6 +398,7 @@ class chattb_thread extends Thread
 //						System.out.println("gg");
 						text=input.readLine();
 						if(text==null) {break;}
+/*
 						//处理文本（例如过滤CQ码）
 						xh=0;xh1=1;
 						CQtext="_CQtext_error_";q="_q_error_";h="_h_error_";
@@ -474,14 +477,23 @@ class chattb_thread extends Thread
 								}
 								//接合前后文本，并在中间加入替换CQ的文本
 								text=(q+CQtext+h);
-							}
+						}
 							xh++;
 						}
 						//结束文本处理
+*/
 						Bukkit.broadcastMessage("§a[QQ]:§b"+text);
 					}
 					input.close();
-					file.delete();
+					if(file.delete()==false)
+					{
+						while(true)
+						{
+							if(file.delete()==true) {break;}
+							System.out.println("删除聊天同步文件出错！反复尝试中！（线程阻塞）");
+							Thread.sleep(3000);
+						}
+					};
 				}
 				Thread.sleep(3000);
 //				System.out.println("aaa");
