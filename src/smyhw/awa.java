@@ -12,14 +12,21 @@ import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.command.Command;
 import org.bukkit.plugin.java.JavaPlugin;
 
+
+
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.util.logging.Logger;
 
 import org.bukkit.*;
 
@@ -30,7 +37,7 @@ public class awa extends JavaPlugin implements Listener{
 	boolean set_kt=false;//是否统计方块挖掘数量
 	boolean set_player_list=false;//是否记录在线玩家列表
 	boolean set_chattb=false;//是否记录玩家聊天
-	String set_chattb_url="E:\\ctb";//玩家聊天记录位置
+//	String set_chattb_url="E:\\ctb";//玩家聊天记录位置
 	String set_player_list_url="E:\\pl";//玩家在线列表位置
 	
 	chattb_thread chattb_;//信息转发线程
@@ -41,7 +48,7 @@ public class awa extends JavaPlugin implements Listener{
         load_set();
         if(set_chattb==true) 
         {
-        	chattb_ = new chattb_thread(set_chattb_url+"_QQ");
+        	chattb_ = new chattb_thread(getLogger());
         	chattb_.start();
         }
         getLogger().info("yh数据统计已经完全加载");
@@ -50,7 +57,11 @@ public class awa extends JavaPlugin implements Listener{
 
 	@Override
     public void onDisable() {
-		if(set_chattb==true) {chattb_.stop();}
+		if(set_chattb==true) 
+		{
+			chattb_.gg();
+			chattb_.stop();
+		}
         getLogger().info("yh数据统计已经卸载");
     }
     @SuppressWarnings("deprecation")
@@ -326,21 +337,13 @@ public class awa extends JavaPlugin implements Listener{
     @EventHandler
     public void chattb(AsyncPlayerChatEvent e) throws Exception
     {
-    	File chattb_file = new File(set_chattb_url);
-    	if(chattb_file.exists()){}else{chattb_file.createNewFile();}
-		FileWriter writer = new FileWriter(chattb_file, true);
-		writer.write(e.getPlayer().getName()+":"+e.getMessage()+"\r\n");
-		writer.close();
+    	new chattb_sender(chattb_.s,getLogger(),(e.getPlayer().getName()+":"+e.getMessage())).start();
     }
     //监听玩家死亡并传送至QQ
     @EventHandler
     public void chattb(PlayerDeathEvent e) throws Exception
     {
-    	File chattb_file = new File(set_chattb_url);
-    	if(chattb_file.exists()){}else{chattb_file.createNewFile();}
-		FileWriter writer = new FileWriter(chattb_file, true);
-		writer.write("[死亡信息]"+e.getEntity().getName()+"回到了重生点"+"\r\n");
-		writer.close();
+    	new chattb_sender(chattb_.s,getLogger(),("[死亡信息]"+e.getEntity().getName()+"回到了重生点")).start();
     }
     //=========================写一堆lib在最后XD===========
     public void load_set()
@@ -353,7 +356,7 @@ public class awa extends JavaPlugin implements Listener{
         set_player_list=getConfig().getBoolean("config.player_list");
         set_chattb=getConfig().getBoolean("config.chattb");
         set_player_list_url=getConfig().getString("config.player_list_url");
-        set_chattb_url=getConfig().getString("config.chattb_url");
+//        set_chattb_url=getConfig().getString("config.chattb_url");
         getLogger().info("config.zj:"+set_zj);
         getLogger().info("config.jj:"+set_jj);
         getLogger().info("config.dj:"+set_dj);
@@ -361,7 +364,7 @@ public class awa extends JavaPlugin implements Listener{
         getLogger().info("config.player_list:"+set_player_list);
         getLogger().info("config.player_list_url:"+set_player_list_url);
         getLogger().info("config.chattb:"+set_chattb);
-        getLogger().info("config.chattb_url:"+set_chattb_url);
+//        getLogger().info("config.chattb_url:"+set_chattb_url);
         getLogger().info("yh数据统计：完成配置加载...");
     }
     //=========================真就lib呗...===============
@@ -369,135 +372,105 @@ public class awa extends JavaPlugin implements Listener{
 //用于消息同步。。。
 class chattb_thread extends Thread
 {
-	String file_URL;
-	public chattb_thread(String file_URL_input)
+	ServerSocket ss;
+	public Socket s;
+	Logger l;
+	chattb_accept cc;
+	DataOutputStream out;
+	public chattb_thread(Logger l_input)
 	{
-		file_URL=file_URL_input;
+		l=l_input;
 	}
 	public void run()
 	{
+		try {ss = new ServerSocket(4201);} catch (IOException e) {l.info("[聊天信息转发]：错误，监听端口失败！正在尝试结束线程以阻止可能的严重错误发生");return;};
 		while(true)
-		try {
-			File file = new File(file_URL);
-			String text;
-			/*处理CQ码时所用，已报废
-			char cl[];
-			int xh=0,xh1=0;
-			String CQtext="_CQtext_error_";
-			String q="_q_error_",h="_h_error_";
-			int a_QQb=0,a_QQe=0;
-			String a_QQ="_a_QQ_errer_";
-			*/
+		{
+			l.info("开始等待新连接...");
+			try {s = ss.accept();} catch (IOException e) {l.info("[聊天信息转发]：警告，一个连接接受失败，抛弃该连接！");continue;}
+			l.info("成功建立一个连接");
+			cc = new chattb_accept(s,l);
+			cc.start();
+			try {out = new DataOutputStream(s.getOutputStream());} catch (IOException e) {}
 			while(true)
 			{
-				if(file.exists())
-				{
-					BufferedReader input = new BufferedReader(new FileReader(file));
-					while(true)
-					{
-//						System.out.println("gg");
-						text=input.readLine();
-						if(text==null) {break;}
-/*
-						//处理文本（例如过滤CQ码）
-						xh=0;xh1=1;
-						CQtext="_CQtext_error_";q="_q_error_";h="_h_error_";
-						while(true)
-						{
-							if(xh==(text.length()-1)) {break;}
-							if
-							(
-									(text.charAt(xh)=='[') &&
-									(text.charAt(xh+1)=='C') &&
-									(text.charAt(xh+2)=='Q') &&
-									(text.charAt(xh+3)==':') 
-							)
-							{//探测到CQ码，检测类型
-								//at类型
-								if(text.charAt(xh+4)=='a')
-								{
-//									System.out.println("aa");
-									while(true)//遍历文本，找到‘=’
-									{
-										if((text.charAt(xh1))=='=') //找到QQ号开始符
-										{
-											a_QQb=(xh1+1);
-											break;
-										}
-										if(xh1==(text.length()-1)) {a_QQb=(text.length()-1);break;}//如果找不到，就定义到末尾
-										xh1++;
-									}
-									while(true)//遍历文本，找到‘]’
-									{
-										if((text.charAt(xh1))==']') //找到CQ结束符，记录QQ号结束
-										{
-											a_QQe=(xh1);
-											break;
-										}
-										if(xh1==(text.length()-1)) {a_QQe=(text.length()-1);break;}//如果找不到，就定义到末尾
-										xh1++;
-									}
-									a_QQ=text.substring(a_QQb, a_QQe);
-									//QQ号转昵称
-									BufferedReader db_input = new BufferedReader(new FileReader("E://QNL"));
-					        		String temp=db_input.readLine();
-					        		while(true)
-					        		{
-//					        			System.out.println(a_QQ+"?"+temp);
-					        			if(temp==null) {temp=(a_QQ+"");break;}
-					        			if(temp.equals(a_QQ+"")) 
-					        			{
-					        				temp=db_input.readLine();
-					        				break;
-					        			}
-					            		temp=db_input.readLine();
-					            		temp=db_input.readLine();
-					        		}
-					        		db_input.close();
-									CQtext=("@"+temp);
-								}
-								xh1=1;
-								//图片类型
-								if(text.charAt(xh+4)=='i') {CQtext="[图片]";}
-								xh1=1;
-								//表情类型
-								if(text.charAt(xh+4)=='f') {CQtext="[表情]";}
-								xh1=1;
-								q=text.substring(0,xh);//剥离出前文本
-								xh1=xh+4;
-								while(true)//遍历文本，找到‘]’
-								{
-									if((text.charAt(xh1))==']') //找到CQ结束符，剥离后文本
-									{
-										h=text.substring(xh1+1);
-										break;
-									}
-									if(xh1==(text.length()-1)) {break;}
-									xh1++;
-								}
-								//接合前后文本，并在中间加入替换CQ的文本
-								text=(q+CQtext+h);
-						}
-							xh++;
-						}
-						//结束文本处理
-*/
-						Bukkit.broadcastMessage("§a[QQ]:§b"+text);
-					}
-					input.close();
-					if(file.delete()==false)
-					{
-						while(true)
-						{
-							if(file.delete()==true) {break;}
-							System.out.println("删除聊天同步文件出错！反复尝试中！（线程阻塞）");
-							Thread.sleep(3000);
-						}
-					};
-				}
-				Thread.sleep(3000);
-//				System.out.println("aaa");
+				try {out.writeUTF("#xt");} catch (IOException e) {l.info("心跳包发送错误！");break;}
+//				System.out.println("发送一个心跳包");
+				try {Thread.sleep(30000);} catch (InterruptedException e) {l.info("延时错误...（这是尼玛什么鬼错误...）");break;}
 			}
-		}catch (Exception e) {continue;}
+		}
+	}
+	public void gg()
+	{
+		try 
+		{
+			cc.stop();
+			s.close();
+			ss.close();
+		} 
+		catch (Exception e) 
+		{
+			System.out.println("gg is error!");
+		}
+	}
+}
+
+//用于接受信息
+class chattb_accept extends Thread
+{
+	Socket s;
+	Logger l;
+	String input_msg;
+	public chattb_accept(Socket s,Logger l)
+	{
+		this.s=s;
+		this.l=l;
+	}
+	public void run()
+	{
+		try {
+			DataInputStream in = new DataInputStream(s.getInputStream());
+//			DataOutputStream out = new DataOutputStream(s.getOutputStream());
+			s.setSoTimeout(60000);
+			while(true)
+			{
+				try{input_msg=in.readUTF();}catch(Exception e) {l.warning("警告，客户端心跳丢失！丢弃连接！");return;}
+//				System.out.println(input_msg);
+				if(!input_msg.equals("#xt"))//确认是心跳包则不处理，不是则发送
+				{
+					Bukkit.broadcastMessage("§a[QQ]:§b"+input_msg);
+				}
+			}
+		} catch (IOException e) {
+			l.warning("警告，接收信息时发生错误！丢弃连接！");
+			return;
+		}
+	}
+}
+
+//用于发送消息
+class chattb_sender extends Thread
+{
+	Socket s;
+	Logger l;
+	DataOutputStream out;
+	String msg;
+	public chattb_sender(Socket s,Logger l,String msg)
+	{
+		this.s=s;
+		this.l=l;
+		this.msg=msg;
+	}
+	public void run()
+	{
+		try {
+			out = new DataOutputStream(s.getOutputStream());
+		} 
+		catch (Exception e) 
+		{
+			l.warning("发送信息时获取输出流错误！取消本次发送");
+			return;
+		}
+		try {out.writeUTF(msg);return;} catch (Exception e) {l.warning("发送信息失败！取消发送！");return;}
 	}
 }
