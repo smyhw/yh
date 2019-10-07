@@ -1,6 +1,7 @@
 package smyhw;
 
 import org.bukkit.command.CommandSender;
+import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -26,6 +27,8 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.Collection;
+import java.util.List;
 import java.util.logging.Logger;
 
 import org.bukkit.*;
@@ -35,22 +38,28 @@ public class awa extends JavaPlugin implements Listener{
 	double set_zj=0;//涨价
 	double set_dj=0;//低价
 	boolean set_kt=false;//是否统计方块挖掘数量
-	boolean set_player_list=false;//是否记录在线玩家列表
+//	boolean set_player_list=false;//是否记录在线玩家列表
 	boolean set_chattb=false;//是否记录玩家聊天
 //	String set_chattb_url="E:\\ctb";//玩家聊天记录位置
-	String set_player_list_url="E:\\pl";//玩家在线列表位置
+//	String set_player_list_url="E:\\pl";//玩家在线列表位置
+	boolean set_PlayerDeath=false;//是否统计玩家死亡次数
 	
 	chattb_thread chattb_;//信息转发线程
+	dt_thread dt_thread_;//操作线程
 	@Override
     public void onEnable() {      
         getLogger().info("yh数据统计正在加载");
         Bukkit.getPluginManager().registerEvents(this,this);
-        load_set();
+        load_set();//载入配置文件
         if(set_chattb==true) 
         {
         	chattb_ = new chattb_thread(getLogger());
         	chattb_.start();
         }
+
+        //数据对接进程
+        dt_thread_ = new dt_thread(getLogger(),getConfig(),Bukkit.getOnlinePlayers());
+        dt_thread_.start();
         getLogger().info("yh数据统计已经完全加载");
 //        saveDefaultConfig();
     }
@@ -62,6 +71,10 @@ public class awa extends JavaPlugin implements Listener{
 			chattb_.gg();
 			chattb_.stop();
 		}
+		
+		//关闭数据对接进程
+        dt_thread_ .gg();
+        dt_thread_.stop();
         getLogger().info("yh数据统计已经卸载");
     }
     @SuppressWarnings("deprecation")
@@ -267,72 +280,73 @@ public class awa extends JavaPlugin implements Listener{
 		getConfig().set(nc+".BreakBlock."+fkid,getConfig().getInt(nc+".BreakBlock."+fkid)+1);
 		saveConfig();
     }
-    @EventHandler
-    public void ktg(PlayerJoinEvent e) throws Exception
-    {
-    	if(set_player_list==false) {return;}
-//    	System.out.println("gg");
-    	String temp1 = e.getPlayer().getName();
-    	getLogger().info("玩家"+temp1+"加入，写入文件！");
-    	player_online_list_file(temp1,1);
-    }
-    @EventHandler
-    public void ktg(PlayerQuitEvent e) throws Exception
-    {
-    	if(set_player_list==false) {return;}
-//    	System.out.println("aa");
-    	String temp1 = e.getPlayer().getName();
-    	getLogger().info("玩家"+temp1+"退出，删改文件！");
-    	player_online_list_file(temp1,0);
-    }
-    //将玩家信息读取或写入
-    //type==1:添加玩家
-    //type==0:删除玩家
-    void player_online_list_file(String name,int type) throws Exception
-    {
-    	if(type==1)
-    	{
-//        	BufferedWriter output = new BufferedWriter(new FileWriter("E:\\pl"));
-//
-//    		output.newLine();
-//    		output.write(name);
-//    		output.close();
-    	      FileWriter writer = new FileWriter(set_player_list_url, true);
-    	      writer.write(name+"\r\n");
-    	      writer.close();
-    	}
-    	else
-    	{
-    		File temp = new File(set_player_list_url+".temp");
-    		temp.createNewFile();
-        	BufferedReader input = new BufferedReader(new FileReader(set_player_list_url));
-        	BufferedWriter tempfile = new BufferedWriter(new FileWriter(set_player_list_url+".temp"));
-    		while(true)
-    		{
-    			String temp1=input.readLine();//temp1:每次从文件中读出的一行
-    			if(temp1==null) {break;}
-    			if(temp1.equals(name)){continue;}
-    			tempfile.write(temp1);
-    			tempfile.newLine();
-    		}
-    		input.close();
-    		tempfile.close();
-    		File temp2 = new File(set_player_list_url);
-    		Boolean temp3;
-    		temp3=temp2.delete();
-    		while(temp3==false)
-    		{
-            	getLogger().info("删除源文件失败,正在重试...");
-    			temp3=temp2.delete();
-    		}
-    		temp3=temp.renameTo(new File(set_player_list_url));
-    		while(temp3==false)
-    		{
-    			getLogger().info("更名文件失败,正在重试...");
-    			temp3=temp.renameTo(new File(set_player_list_url));
-    		}
-    	}
-    }
+    //用于将玩家列表计入文本，功能已过时，除去！
+//    @EventHandler
+//    public void ktg(PlayerJoinEvent e) throws Exception
+//    {
+//    	if(set_player_list==false) {return;}
+////    	System.out.println("gg");
+//    	String temp1 = e.getPlayer().getName();
+//    	getLogger().info("玩家"+temp1+"加入，写入文件！");
+//    	player_online_list_file(temp1,1);
+//    }
+//    @EventHandler
+//    public void ktg(PlayerQuitEvent e) throws Exception
+//    {
+//    	if(set_player_list==false) {return;}
+////    	System.out.println("aa");
+//    	String temp1 = e.getPlayer().getName();
+//    	getLogger().info("玩家"+temp1+"退出，删改文件！");
+//    	player_online_list_file(temp1,0);
+//    }
+//    //将玩家信息读取或写入
+//    //type==1:添加玩家
+//    //type==0:删除玩家
+//    void player_online_list_file(String name,int type) throws Exception
+//    {
+//    	if(type==1)
+//    	{
+////        	BufferedWriter output = new BufferedWriter(new FileWriter("E:\\pl"));
+////
+////    		output.newLine();
+////    		output.write(name);
+////    		output.close();
+//    	      FileWriter writer = new FileWriter(set_player_list_url, true);
+//    	      writer.write(name+"\r\n");
+//    	      writer.close();
+//    	}
+//    	else
+//    	{
+//    		File temp = new File(set_player_list_url+".temp");
+//    		temp.createNewFile();
+//        	BufferedReader input = new BufferedReader(new FileReader(set_player_list_url));
+//        	BufferedWriter tempfile = new BufferedWriter(new FileWriter(set_player_list_url+".temp"));
+//    		while(true)
+//    		{
+//    			String temp1=input.readLine();//temp1:每次从文件中读出的一行
+//    			if(temp1==null) {break;}
+//    			if(temp1.equals(name)){continue;}
+//    			tempfile.write(temp1);
+//    			tempfile.newLine();
+//    		}
+//    		input.close();
+//    		tempfile.close();
+//    		File temp2 = new File(set_player_list_url);
+//    		Boolean temp3;
+//    		temp3=temp2.delete();
+//    		while(temp3==false)
+//    		{
+//            	getLogger().info("删除源文件失败,正在重试...");
+//    			temp3=temp2.delete();
+//    		}
+//    		temp3=temp.renameTo(new File(set_player_list_url));
+//    		while(temp3==false)
+//    		{
+//    			getLogger().info("更名文件失败,正在重试...");
+//    			temp3=temp.renameTo(new File(set_player_list_url));
+//    		}
+//    	}
+//    }
     //监听聊天信息并写入文件
     @EventHandler
     public void chattb(AsyncPlayerChatEvent e) throws Exception
@@ -345,26 +359,41 @@ public class awa extends JavaPlugin implements Listener{
     {
     	new chattb_sender(chattb_.s,getLogger(),("[死亡信息]"+e.getEntity().getName()+"回到了重生点")).start();
     }
+    
+    //监听玩家死亡并计入配置文件
+    @EventHandler
+    public void PlayerDeath(PlayerDeathEvent e) throws Exception
+    {
+
+    	if(set_PlayerDeath==false) {return;}//如果设置里没有启动这个功能，则直接结束
+    	String name="PlayerDeath."+e.getEntity().getName();//获取配置文件字段
+    	int temp=getConfig().getInt(name);//获取原数据
+    	temp=temp+1;//原数据加上这次的死亡
+    	getConfig().set(name,temp);//写回配置文件
+    	saveConfig();
+    }
     //=========================写一堆lib在最后XD===========
     public void load_set()
     {
         getLogger().info("yh数据统计：正在加载配置...");
-        set_zj=getConfig().getDouble("config.zj");
-        set_jj=getConfig().getDouble("config.jj");
-        set_dj=getConfig().getDouble("config.dj");
-        set_kt=getConfig().getBoolean("config.kt");
-        set_player_list=getConfig().getBoolean("config.player_list");
-        set_chattb=getConfig().getBoolean("config.chattb");
-        set_player_list_url=getConfig().getString("config.player_list_url");
+        set_zj=getConfig().getDouble("config.zj");//
+        set_jj=getConfig().getDouble("config.jj");//
+        set_dj=getConfig().getDouble("config.dj");//
+        set_kt=getConfig().getBoolean("config.kt");//是否记录玩家挖掘方块数量
+//        set_player_list=getConfig().getBoolean("config.player_list");
+        set_chattb=getConfig().getBoolean("config.chattb");//是否开启聊天转发
+//        set_player_list_url=getConfig().getString("config.player_list_url");
 //        set_chattb_url=getConfig().getString("config.chattb_url");
+        set_PlayerDeath=getConfig().getBoolean("config.PlayerDeath");//是否记录玩家死亡次数
         getLogger().info("config.zj:"+set_zj);
         getLogger().info("config.jj:"+set_jj);
         getLogger().info("config.dj:"+set_dj);
         getLogger().info("config.kt:"+set_kt);
-        getLogger().info("config.player_list:"+set_player_list);
-        getLogger().info("config.player_list_url:"+set_player_list_url);
+//        getLogger().info("config.player_list:"+set_player_list);
+//        getLogger().info("config.player_list_url:"+set_player_list_url);
         getLogger().info("config.chattb:"+set_chattb);
 //        getLogger().info("config.chattb_url:"+set_chattb_url);
+        getLogger().info("config.PlayerDeath:"+set_PlayerDeath);
         getLogger().info("yh数据统计：完成配置加载...");
     }
     //=========================真就lib呗...===============
@@ -402,16 +431,10 @@ class chattb_thread extends Thread
 	}
 	public void gg()
 	{
-		try 
-		{
-			cc.stop();
-			s.close();
-			ss.close();
-		} 
-		catch (Exception e) 
-		{
-			System.out.println("gg is error!");
-		}
+		try {cc.stop();} catch (Exception e) {System.out.println("gg is error!(1)");}
+		try {s.close();} catch (Exception e) {System.out.println("gg is error!(2)");}
+		try {ss.close();} catch (Exception e) {System.out.println("gg is error!(3)");}
+		
 	}
 }
 
@@ -452,13 +475,13 @@ class chattb_accept extends Thread
 class chattb_sender extends Thread
 {
 	Socket s;
-	Logger l;
+	Logger loger;
 	DataOutputStream out;
 	String msg;
 	public chattb_sender(Socket s,Logger l,String msg)
 	{
 		this.s=s;
-		this.l=l;
+		this.loger=l;
 		this.msg=msg;
 	}
 	public void run()
@@ -468,9 +491,216 @@ class chattb_sender extends Thread
 		} 
 		catch (Exception e) 
 		{
-			l.warning("发送信息时获取输出流错误！取消本次发送");
+			loger.warning("发送信息时获取输出流错误！取消本次发送");
 			return;
 		}
-		try {out.writeUTF(msg);return;} catch (Exception e) {l.warning("发送信息失败！取消发送！");return;}
+		try {out.writeUTF(msg);return;} catch (Exception e) {loger.warning("发送信息失败！取消发送！");return;}
+	}
+}
+
+//数据对接线程
+class dt_thread extends Thread
+{
+	Collection<? extends Player> Players;
+	String temp;
+	static ServerSocket ss;
+	Socket s;
+	DataOutputStream out;
+	DataInputStream in;
+	Logger loger;
+	FileConfiguration configer;
+	public dt_thread(Logger l,FileConfiguration configer,Collection<? extends Player> Players)
+	{
+		this.Players=Players;
+		this.loger = l;
+		this.configer=configer;
+		try {ss = new ServerSocket(4202);} catch (IOException e) {loger.warning("pl监听失败");}
+		loger.info("pl监听开始");
+	}
+	public void run()
+	{
+		while(true)
+		{
+			try {s=ss.accept();} catch (Exception e) {loger.warning("操作信道连接失败");continue;}
+			new dts_thread(loger,configer,s,Players).run();
+			loger.info("操作信道连接完毕");
+			//这里开一个新线程去处理这个连接，这线程继续等待下一个连接
+//			try {out = new DataOutputStream(s.getOutputStream());} catch (Exception e) {System.out.println("操作信道流打开失败");continue;}
+//			try {in = new DataInputStream(s.getInputStream());} catch (Exception e) {System.out.println("操作信道流打开失败");continue;}
+//			try {temp=in.readUTF();} catch (Exception e) {System.out.println("操作信道读取操作指令失败");continue;}
+//			if(temp.equals("#pl"))
+//			{
+//				for(Player p :Players)
+//				{
+//					temp=p.getName();
+//					try {out.writeUTF(temp);} catch (Exception e) {System.out.println("pl写失败");continue;}
+//				}
+//				continue;//处理完这指令，不要继续判断
+//			}
+//			try {s.close();} catch (Exception e) {System.out.println("pl未知错误");continue;}
+		}
+	}
+	public static void gg()
+	{
+		try {
+			ss.close();
+		} catch (Exception e) {
+			System.out.println("pl_gg_error");
+		}
+	}
+}
+
+//用于处理一个dt连接
+class dts_thread extends Thread
+{
+	Logger loger;
+	FileConfiguration configer;
+	Collection<? extends Player> Players;
+	String temp;
+	Socket s;
+	DataOutputStream out;
+	DataInputStream in;
+	public dts_thread(Logger l,FileConfiguration configer,Socket s,Collection<? extends Player> Players)
+	{
+		this.s=s;
+		this.Players=Players;
+		this.loger=l;
+		this.configer =configer;
+	}
+	public void run()
+	{
+		try {out = new DataOutputStream(s.getOutputStream());} catch (Exception e) {loger.warning("操作信道流打开失败");return;}
+		try {in = new DataInputStream(s.getInputStream());} catch (Exception e) {loger.warning("操作信道流打开失败");return;}
+		try {temp=in.readUTF();} catch (Exception e) {loger.warning("操作信道读取操作指令失败");return;}
+		
+		//功能：获取玩家列表
+		if(temp.equals("#pl"))
+		{
+			for(Player p :Players)
+			{
+				temp=p.getName();
+				try {out.writeUTF(temp);} catch (Exception e) {loger.warning("pl写失败");continue;}
+			}
+			try {s.close();} catch (Exception e) {loger.warning("操作信道关闭错误！");return;}
+			return;//处理完这指令，不要继续判断
+		}
+		
+		//功能：执行指令
+		if(temp.equals("#command"))
+		{
+//			return;//注意！这个功能十分危险！禁用他！
+//			try {temp=in.readUTF();} catch (IOException e) {}
+//			Bukkit.dispatchCommand(Bukkit.getConsoleSender(),temp);
+			try {s.close();} catch (Exception e) {loger.warning("操作信道关闭错误！");return;}
+			return;
+		}
+		
+		//功能：获取玩家死亡计数
+		if(temp.equals("#death"))
+		{
+			try {temp=in.readUTF();} catch (IOException e1) {loger.warning("查询玩家死亡次数，获取查询模式失败！");try {in.close();} catch (IOException e) {}return;}//获取查询详情。。。
+			if(temp.equals("p"))
+			{
+				try {temp=in.readUTF();} catch (IOException e1) {loger.warning("获取查询类别错误！");}//获取查的谁
+				temp=configer.getInt("PlayerDeath."+temp)+"";
+				try {out.writeUTF(temp);} catch (IOException e) {loger.warning("玩家死亡计数发送错误！");}
+			}
+			if(temp.equals("l"))
+			{
+				int sn=0;
+				int t=0;
+				int db=0;
+				File ej = new File("./plugins/yh/config.yml");
+				int []arr= new int[0];
+				String []arrn=new String[0];
+				String []temps=new String[10];
+	        	try 
+	        	{
+	        		//探测有多少玩家数据。。。
+	        		
+					BufferedReader input = new BufferedReader(new FileReader(ej));
+//					if(db==0)return;
+//					BufferedWriter output = new BufferedWriter(new FileWriter(ej));
+//					System.out.println("aa");
+					while(true)
+					{
+						temp=input.readLine();
+//						System.out.println("a"+temp);
+						if(temp==null) {break;}
+						temp=temp.trim();
+						if(t==1)
+						{
+							if(temp.equals("ed: 0")) {break;}
+							sn++;
+						}
+						if(temp.equals("PlayerDeath:")){t=1;}//找到内容
+					}
+//					System.out.println("bb");
+					input.close();
+//					output.close();
+	        		//========================
+					arr = new int[sn];
+					arrn = new String[sn];
+					sn=0;t=0;
+					input = new BufferedReader(new FileReader(ej));
+//					output = new BufferedWriter(new FileWriter(ej));
+//					System.out.println("cc");
+					while(true)
+					{
+						temp=input.readLine();
+//						System.out.println("c"+temp);
+						if(temp==null) {break;}
+						temp=temp.trim();
+						if(t==1)
+						{
+							if(temp.equals("ed: 0")) {break;}
+							temps=temp.split(":");
+							temp=temps[1];
+							temp=temp.trim();
+//							System.out.println("ccc"+temp);
+							arr[sn]=Integer.parseInt(temp);
+							arrn[sn]=temps[0];
+							sn++;
+						}
+						if(temp.equals("PlayerDeath:")){t=1;}//找到内容
+					}
+					input.close();
+				} catch (Exception e1) {loger.warning("玩家死亡列表输入输出流异常");}
+				
+				//========================
+				for (int i = 0; i < arr.length; i++) 
+				{
+//					System.out.println("aa"+arr[i]);
+					for (int j = i + 1; j < arr.length; j++) 
+					{
+						if (arr[i] < arr[j]) 
+						{
+							int tmp = (int)arr[i];
+							arr[i] = arr[j];
+							arr[j] = tmp;
+							
+							String tmp1 = arrn[i];
+							arrn[i]=arrn[j];
+							arrn[j]=tmp1;
+						}
+					}
+				}
+				//=======================
+				try 
+				{
+					for(int i=0;i<10;i++)
+					{
+						out.writeUTF(arrn[i]+"——"+arr[i]);
+//						System.out.println(i+"gg"+(int)arr[i]);
+					}
+				} 
+				catch (Exception e) 
+				{loger.warning(e.getMessage());loger.warning("玩家死亡排行榜发送错误！");}
+				//========================================
+			}
+			try {s.close();} catch (Exception e) {loger.warning("操作信道关闭错误！");return;}
+			return;//处理完这指令，不要继续判断
+		}
+		try {s.close();} catch (Exception e) {loger.warning("操作信道关闭错误！");return;}
 	}
 }
