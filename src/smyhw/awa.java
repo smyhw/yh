@@ -13,7 +13,7 @@ import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.command.Command;
 import org.bukkit.plugin.java.JavaPlugin;
 
-
+import me.clip.placeholderapi.PlaceholderAPI;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -630,7 +630,7 @@ class dts_thread extends Thread
 						temp=temp.trim();
 						if(t==1)
 						{
-							if(temp.equals("ed: 0")) {break;}
+							if(temp.equals("zzz: 0")) {break;}
 							sn++;
 						}
 						if(temp.equals("PlayerDeath:")){t=1;}//找到内容
@@ -653,7 +653,7 @@ class dts_thread extends Thread
 						temp=temp.trim();
 						if(t==1)
 						{
-							if(temp.equals("ed: 0")) {break;}
+							if(temp.equals("zzz: 0")) {break;}
 							temps=temp.split(":");
 							temp=temps[1];
 							temp=temp.trim();
@@ -698,9 +698,31 @@ class dts_thread extends Thread
 				{loger.warning(e.getMessage());loger.warning("玩家死亡排行榜发送错误！");}
 				//========================================
 			}
+
 			try {s.close();} catch (Exception e) {loger.warning("操作信道关闭错误！");return;}
 			return;//处理完这指令，不要继续判断
 		}
+		
+		//获取服务器状态
+		if(temp.equals("#st"))
+		{
+			try
+			{
+				out.writeUTF("mc.smyhw.online:25565");
+				out.writeUTF("在线");
+				out.writeUTF("9/"+Players.size());
+				String TPS = new String("%server_tps_1%");
+				TPS = PlaceholderAPI.setPlaceholders(null,TPS);
+				out.writeUTF(TPS);
+			}
+			catch(Exception e)
+			{
+				loger.warning(e.getMessage());loger.warning("服务器信息发送错误");
+			}
+			try {s.close();} catch (Exception e) {loger.warning("操作信道关闭错误！");return;}
+			return;
+		}
+		//
 		try {s.close();} catch (Exception e) {loger.warning("操作信道关闭错误！");return;}
 	}
 }
