@@ -630,7 +630,7 @@ class dts_thread extends Thread
 						temp=temp.trim();
 						if(t==1)
 						{
-							if(temp.equals("zzz: 0")) {break;}
+							if(temp.equals("zzz:")) {break;}
 							sn++;
 						}
 						if(temp.equals("PlayerDeath:")){t=1;}//找到内容
@@ -653,7 +653,7 @@ class dts_thread extends Thread
 						temp=temp.trim();
 						if(t==1)
 						{
-							if(temp.equals("zzz: 0")) {break;}
+							if(temp.equals("zzz:")) {break;}
 							temps=temp.split(":");
 							temp=temps[1];
 							temp=temp.trim();
