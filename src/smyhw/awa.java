@@ -723,6 +723,43 @@ class dts_thread extends Thread
 			return;
 		}
 		//
+		//获取某物品的价格
+		if(temp.equals("#jc"))
+		{
+			try
+			{
+				String wp=in.readUTF();
+				Double re = configer.getDouble("sell.now."+wp);
+				loger.info("QQ端查询："+"sell.now."+wp+"="+re);
+				out.writeUTF(re+"");
+			}
+			catch(Exception e)
+			{
+				loger.warning(e.getMessage());loger.warning("服务器信息发送错误");
+			}
+			try {s.close();} catch (Exception e) {loger.warning("操作信道关闭错误！");return;}
+			return;
+		}
+		
+		//获取某玩家货币数量
+		if(temp.equals("#jq"))
+		{
+			try
+			{
+				String wj=in.readUTF();
+				String re = new String("%server_tps_1%");
+				re = PlaceholderAPI.setPlaceholders(null,re);
+				loger.info("QQ端查询货币数量："+"wj="+re);
+				out.writeUTF(re+"");
+			}
+			catch(Exception e)
+			{
+				loger.warning(e.getMessage());loger.warning("服务器信息发送错误");
+			}
+			try {s.close();} catch (Exception e) {loger.warning("操作信道关闭错误！");return;}
+			return;
+		}
+		//
 		try {s.close();} catch (Exception e) {loger.warning("操作信道关闭错误！");return;}
 	}
 }
